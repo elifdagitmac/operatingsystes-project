@@ -1,50 +1,51 @@
 """
-Ana program: 5 algoritma varyantını çalıştırır, karşılaştırma tablosunu yazar,
-Gantt şemalarını 'ciktilar' klasörüne PNG olarak kaydeder.
-
-Çalıştırma:  python main.py
+Testler: kodun sonuçları ELLE hesaplanan sayılarla aynı mı?
+Çalıştırma:  python -m unittest -v
 """
-import os
+import unittest
 
-from algoritmalar import GOREVLER, hepsini_calistir
-from gantt import gantt_metin, gantt_ciz, gantt_hepsi
-
-CIKTI_KLASORU = "ciktilar"
+from algoritmalar import (GOREVLER, geldigi_sirayla, en_kisa_is_once,
+                          dongusel_siralama, oncelik_zamanlamasi)
 
 
-def tablo_yazdir(sonuclar):
-    print("\nKARŞILAŞTIRMA TABLOSU (süre: ms)")
-    print("-" * 66)
-    print(f"{'Algoritma':<34}{'Fren bekleme':>14}{'Ortalama bekleme':>18}")
-    print("-" * 66)
-    for _, s in sonuclar:
-        print(f"{s['isim']:<34}{s['bekleme']['Fren']:>14}{s['ortalama']:>18.2f}")
-    print("-" * 66)
+class ElleHesapTestleri(unittest.TestCase):
 
+    def kontrol(self, sonuc, bekleme, ortalama):
+        self.assertEqual(sonuc["bekleme"], bekleme)
+        self.assertAlmostEqual(sonuc["ortalama"], ortalama)
 
-def main():
-    sonuclar = hepsini_calistir()
-    gorev_sirasi = [g["ad"] for g in GOREVLER]
+    def test_geldigi_sirayla(self):
+        s = geldigi_sirayla(GOREVLER)
+        self.assertEqual(s["cizelge"], [("Müzik", 0, 6), ("Klima", 6, 9),
+                                        ("Motor", 9, 13), ("Fren", 13, 15)])
+        self.kontrol(s, {"Müzik": 0, "Klima": 5, "Motor": 7, "Fren": 10}, 5.5)
 
-    # 1) Her algoritmanın çizelgesi ve bekleme süreleri
-    for _, s in sonuclar:
-        gantt_metin(s)
-        bekleme_yazisi = ", ".join(f"{ad}: {b}" for ad, b in s["bekleme"].items())
-        print(f"  Bekleme -> {bekleme_yazisi} | Ortalama: {s['ortalama']:.2f}\n")
+    def test_en_kisa_is_once(self):
+        s = en_kisa_is_once(GOREVLER)
+        self.assertEqual(s["cizelge"], [("Müzik", 0, 6), ("Fren", 6, 8),
+                                        ("Klima", 8, 11), ("Motor", 11, 15)])
+        self.kontrol(s, {"Müzik": 0, "Klima": 7, "Motor": 9, "Fren": 3}, 4.75)
 
-    # 2) Karşılaştırma tablosu
-    tablo_yazdir(sonuclar)
+    def test_dongusel_kuantum_3(self):
+        s = dongusel_siralama(GOREVLER, kuantum=3)
+        self.assertEqual(s["cizelge"], [("Müzik", 0, 3), ("Klima", 3, 6), ("Motor", 6, 9),
+                                        ("Fren", 9, 11), ("Müzik", 11, 14), ("Motor", 14, 15)])
+        self.kontrol(s, {"Müzik": 8, "Klima": 2, "Motor": 9, "Fren": 6}, 6.25)
 
-    # 3) Gantt resimleri (matplotlib yoksa atlanır)
-    try:
-        os.makedirs(CIKTI_KLASORU, exist_ok=True)
-        for kisa_ad, s in sonuclar:
-            gantt_ciz(s, f"{CIKTI_KLASORU}/gantt_{kisa_ad}.png", gorev_sirasi)
-        gantt_hepsi([s for _, s in sonuclar], f"{CIKTI_KLASORU}/gantt_hepsi.png", gorev_sirasi)
-        print(f"\nGantt şemaları '{CIKTI_KLASORU}' klasörüne kaydedildi.")
-    except ImportError:
-        print("\nmatplotlib kurulu değil, resimler atlandı. Kurmak için: pip install matplotlib")
+    def test_dongusel_kuantum_2(self):
+        s = dongusel_siralama(GOREVLER, kuantum=2)
+        self.assertEqual(s["cizelge"], [("Müzik", 0, 2), ("Klima", 2, 4), ("Motor", 4, 6),
+                                        ("Müzik", 6, 8), ("Fren", 8, 10), ("Klima", 10, 11),
+                                        ("Motor", 11, 13), ("Müzik", 13, 15)])
+        self.kontrol(s, {"Müzik": 9, "Klima": 7, "Motor": 7, "Fren": 5}, 7.0)
+
+    def test_oncelik(self):
+        s = oncelik_zamanlamasi(GOREVLER)
+        self.assertEqual(s["cizelge"], [("Müzik", 0, 1), ("Klima", 1, 2), ("Motor", 2, 3),
+                                        ("Fren", 3, 5), ("Motor", 5, 8), ("Klima", 8, 10),
+                                        ("Müzik", 10, 15)])
+        self.kontrol(s, {"Müzik": 9, "Klima": 6, "Motor": 2, "Fren": 0}, 4.25)
 
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

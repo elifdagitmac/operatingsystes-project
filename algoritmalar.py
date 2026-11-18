@@ -74,4 +74,64 @@ def dongusel_siralama(gorevler, kuantum, yeni_gelen_once=True):
     i = 0            # gelecekler listesinde sıradaki görev
     bitenler = 0
 
-    while bitenler
+    while bitenler < len(gorevler):
+        # Gelmiş olan görevleri kuyruğa al
+        while i < len(gelecekler) and gelecekler[i]["gelis"] <= t:
+            kuyruk.append(gelecekler[i]["ad"])
+            i += 1
+        if not kuyruk:                       # kuyruk boş, bir sonraki geliş anına atla
+            t = gelecekler[i]["gelis"]
+            continue
+
+        ad = kuyruk.popleft()
+        calisma = min(kuantum, kalan[ad])    # kuantumdan kısa işse işi bitince çıkar
+        cizelge.append((ad, t, t + calisma))
+        t += calisma
+        kalan[ad] -= calisma
+
+        # Çalışırken gelenleri kuyruğa al
+        sinir = t if yeni_gelen_once else t - 1
+        while i < len(gelecekler) and gelecekler[i]["gelis"] <= sinir:
+            kuyruk.append(gelecekler[i]["ad"])
+            i += 1
+
+        if kalan[ad] > 0:
+            kuyruk.append(ad)                # işi bitmediyse kuyruğun sonuna
+        else:
+            bitenler += 1
+
+    return sonuc_olustur(f"Döngüsel sıralama (kuantum {kuantum})", gorevler, cizelge)
+
+
+# 4) Öncelik zamanlaması (kesmeli): her an kuyruktaki EN ÖNEMLİ görev çalışır
+def oncelik_zamanlamasi(gorevler):
+    kalan = {g["ad"]: g["sure"] for g in gorevler}
+    cizelge = []
+    t = 0
+    while any(k > 0 for k in kalan.values()):
+        hazir = [g for g in gorevler if g["gelis"] <= t and kalan[g["ad"]] > 0]
+        if not hazir:
+            t += 1
+            continue
+        # Küçük öncelik sayısı = daha önemli. Eşitse önce gelen.
+        secilen = min(hazir, key=lambda g: (g["oncelik"], g["gelis"]))
+        ad = secilen["ad"]
+        # Her ms'de kontrol ediyoruz: daha önemli biri gelirse çalışan otomatik kesilir
+        if cizelge and cizelge[-1][0] == ad and cizelge[-1][2] == t:
+            cizelge[-1] = (ad, cizelge[-1][1], t + 1)   # aynı görev devam ediyor
+        else:
+            cizelge.append((ad, t, t + 1))
+        kalan[ad] -= 1
+        t += 1
+    return sonuc_olustur("Öncelik zamanlaması (kesmeli)", gorevler, cizelge)
+
+
+def hepsini_calistir(gorevler=GOREVLER):
+    """Beş varyantı çalıştırır, (kısa_ad, sonuç) listesi döndürür."""
+    return [
+        ("fcfs",     geldigi_sirayla(gorevler)),
+        ("sjf",      en_kisa_is_once(gorevler)),
+        ("rr_k3",    dongusel_siralama(gorevler, kuantum=3)),
+        ("rr_k2",    dongusel_siralama(gorevler, kuantum=2)),
+        ("oncelik",  oncelik_zamanlamasi(gorevler)),
+    ]
